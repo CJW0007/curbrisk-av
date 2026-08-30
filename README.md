@@ -17,7 +17,11 @@ The project focuses on three fundamental questions in risk analysis:
 
 ## Analysis
 
-The analysis examines whether PUDO complaint risk is **increasing, decreasing, or remaining stable over time**.
+The analysis follows the Fall 2026 class exercise: identify PUDO hazards,
+assess their consequences, determine likelihood while controlling for miles
+driven, and place the issue on a likelihood × consequence risk chart. It also
+examines whether PUDO complaint risk is **increasing, decreasing, or remaining
+stable over time**.
 
 Rather than comparing raw complaint counts alone, complaint frequency is normalized by exposure:
 
@@ -27,6 +31,13 @@ $$
 $$
 
 Exposure-adjusted rates and statistical trend models are then used to evaluate changes across reporting periods and place PUDO hazards on a **likelihood × consequence risk matrix**.
+
+The class prompt describes Q3 2024–Q2 2026 as eight quarters. CPUC actually
+published nine usable windows because it issued a one-month December 2024
+transition report before switching to calendar quarters in 2025. The primary
+trend model retains all nine windows with their actual time spacing. The
+Notebook combines Sep–Nov and Dec 2024 only for the requested four-block Y1
+versus four-block Y2 classroom comparison, and labels that choice explicitly.
 
 ## Data
 

@@ -57,7 +57,10 @@ if a required rate would be null.
   calendar quarters. The 2024 portion of the window is covered by the
   Jun–Aug 2024, Sep–Nov 2024, and Dec 2024 (one-month stub) reports. The
   Poisson trend model in the notebook handles unequal exposure via the
-  VMT offset.
+  VMT offset and actual window midpoints. For Missy's requested 8-block Y1/Y2
+  comparison, Sep–Nov and Dec 2024 are combined into one clearly labeled
+  transition block because redacted complaint dates cannot be reassigned to
+  calendar quarters.
 - CPUC changed complaint schemas in 2025. The pipeline maps legacy aggregate
   fields such as `ComplaintsPUDO` to the canonical count columns used for the
   2025+ row-level Y/N files.
