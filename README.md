@@ -43,10 +43,11 @@ The reproducible [`pudo-pipeline`](pudo-pipeline/) package downloads and process
 
 ```text
 curbrisk-av/
-├── pudo-pipeline/      # CPUC ingestion and data preparation
-├── notebooks/          # Risk and statistical analysis
-├── data/               # Generated analysis datasets
-├── figures/            # Charts and risk visualizations
+├── pudo-pipeline/
+│   ├── src/            # CPUC ingestion, normalization, and validation
+│   ├── notebooks/      # Risk and statistical analysis
+│   ├── tests/          # Transformation and validation regression tests
+│   └── data/           # Generated locally; ignored by Git
 └── README.md
 ```
 

@@ -44,6 +44,15 @@ PERIODS: dict[str, tuple[str, list[tuple[int, int]]]] = {
 }
 
 COMPANY = "Waymo"
+# CPUC formats the permit as PSG0038152 in the quarterly CSV files.  The
+# Jun-Aug 2024 archive contains multiple carriers, so the file/folder name is
+# not sufficient to identify Waymo rows.
+COMPANY_TCPIDS = {
+    "PSG0038152",
+    # Some CPUC Waymo Incidents-Complaints overflow parts transpose two
+    # digits even though the archive and filename identify PSG0038152.
+    "PSG0031852",
+}
 
 # Project-relative data layout (override with PUDO_DATA_DIR env var)
 DATA_DIR = Path("data")
@@ -72,6 +81,15 @@ COLLISION_PUDO_FLAGS = [
     "CollisionPUDOProperty",
 ]
 COMPLAINT_KEEP = ["TCPID"] + COLLISION_PUDO_FLAGS + COMPLAINT_FLAGS
+
+# Before 2025, CPUC published one aggregate row per reporting period.  From
+# 2025 onward the same concepts are represented as row-level Y/N flags.  Map
+# the legacy aggregate columns to the canonical names used by the pipeline.
+LEGACY_COUNT_MAP = {
+    "ComplaintPUDO": "ComplaintsPUDO",
+    "PUDOTravelLane": "PUDOTravelLaneAll",
+    "CollisionPUDOAny": "CollisionsPUDOAll",
+}
 
 # Month_Level columns (denominator / activity)
 MONTH_LEVEL_KEEP = [

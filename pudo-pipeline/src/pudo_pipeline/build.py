@@ -14,7 +14,12 @@ from pathlib import Path
 
 from . import config
 from .download import download_all, extract_all
-from .transform import build_summary, load_complaints, load_monthly
+from .transform import (
+    DataValidationError,
+    build_summary,
+    load_complaints,
+    load_monthly,
+)
 
 
 def main() -> None:
@@ -33,9 +38,12 @@ def main() -> None:
         download_all(raw)
         extract_all(raw, extracted)
 
-    complaints = load_complaints(extracted)
-    monthly = load_monthly(extracted)
-    summary = build_summary(complaints, monthly)
+    try:
+        complaints = load_complaints(extracted)
+        monthly = load_monthly(extracted)
+        summary = build_summary(complaints, monthly)
+    except (DataValidationError, FileNotFoundError) as exc:
+        parser.exit(2, f"[error] data validation failed: {exc}\n")
 
     complaints.write_parquet(out / "complaints.parquet")
     monthly.write_parquet(out / "monthly_activity.parquet")
