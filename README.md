@@ -32,6 +32,11 @@ $$
 
 Exposure-adjusted rates and statistical trend models are then used to evaluate changes across reporting periods and place PUDO hazards on a **likelihood × consequence risk matrix**.
 
+The detailed Chinese review—covering the five original bugs, source-schema
+audit, preprocessing decisions, feature/sample relationships, distribution,
+trend models, and consequence analysis—is available in
+[`docs/ANALYSIS_AND_FIXES_ZH.md`](docs/ANALYSIS_AND_FIXES_ZH.md).
+
 The class prompt describes Q3 2024–Q2 2026 as eight quarters. CPUC actually
 published nine usable windows because it issued a one-month December 2024
 transition report before switching to calendar quarters in 2025. The primary
@@ -46,6 +51,8 @@ Public data comes from the **California Public Utilities Commission Autonomous V
 The reproducible [`pudo-pipeline`](pudo-pipeline/) package downloads and processes the quarterly reports into analysis-ready Parquet datasets containing:
 
 * PUDO complaints and incidents
+* Tract-level collision aggregates and incident-row reconciliation
+* Mutually exclusive highest-listed PUDO collision severity
 * Quarterly and monthly vehicle activity
 * Trips and vehicle miles traveled
 * Exposure-adjusted PUDO complaint rates
@@ -54,6 +61,7 @@ The reproducible [`pudo-pipeline`](pudo-pipeline/) package downloads and process
 
 ```text
 curbrisk-av/
+├── docs/               # Review notes and analysis decisions
 ├── pudo-pipeline/
 │   ├── src/            # CPUC ingestion, normalization, and validation
 │   ├── notebooks/      # Risk and statistical analysis
