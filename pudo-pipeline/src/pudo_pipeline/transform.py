@@ -598,13 +598,7 @@ def build_summary(
         )
 
     counts = counts.with_columns(
-        pl.when(
-            (
-                pl.col("period_id").str.starts_with("2025")
-                | pl.col("period_id").str.starts_with("2026")
-            )
-            & pl.col("pudo_collisions_location").is_not_null()
-        )
+        pl.when(pl.col("pudo_collisions_location").is_not_null())
         .then(pl.col("pudo_collisions_location"))
         .otherwise(pl.col("pudo_collisions_incident_report"))
         .alias("pudo_collisions"),
@@ -612,15 +606,9 @@ def build_summary(
             pl.col("pudo_collisions_location")
             - pl.col("pudo_collisions_incident_report")
         ).alias("pudo_collision_reconciliation_gap"),
-        pl.when(
-            (
-                pl.col("period_id").str.starts_with("2025")
-                | pl.col("period_id").str.starts_with("2026")
-            )
-            & pl.col("pudo_collisions_location").is_not_null()
-        )
+        pl.when(pl.col("pudo_collisions_location").is_not_null())
         .then(pl.lit("Incidents-Location"))
-        .otherwise(pl.lit("legacy Incidents-Complaints aggregate"))
+        .otherwise(pl.lit("Incidents-Complaints fallback"))
         .alias("pudo_collision_primary_source"),
     )
 

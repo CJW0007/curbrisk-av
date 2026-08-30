@@ -439,7 +439,7 @@ class TransformTests(unittest.TestCase):
         ).item()
         self.assertEqual(dec_rate, 100.0)
 
-    def test_summary_prefers_location_collisions_for_modern_periods(self) -> None:
+    def test_summary_prefers_location_collisions_when_available(self) -> None:
         complaints = pl.DataFrame(
             {
                 "period_id": list(PERIODS),
@@ -459,15 +459,20 @@ class TransformTests(unittest.TestCase):
             for period, (_, months) in PERIODS.items()
             for year, month in months
         ]
-        modern_periods = [
-            period for period in PERIODS if period.startswith(("2025", "2026"))
+        location_periods = [
+            "2024P5_Dec",
+            *[
+                period
+                for period in PERIODS
+                if period.startswith(("2025", "2026"))
+            ],
         ]
         locations = pl.DataFrame(
             {
-                "period_id": modern_periods,
-                "CollisionsAll": [10] * len(modern_periods),
-                "CollisionsPUDO": [5] * len(modern_periods),
-                "PUDOTravelLane": [None] * len(modern_periods),
+                "period_id": location_periods,
+                "CollisionsAll": [10] * len(location_periods),
+                "CollisionsPUDO": [8] + [5] * (len(location_periods) - 1),
+                "PUDOTravelLane": [None] * len(location_periods),
             }
         )
 
@@ -477,6 +482,7 @@ class TransformTests(unittest.TestCase):
             locations,
         )
         modern = summary.filter(pl.col("period_id") == "2025Q1")
+        legacy_discrepancy = summary.filter(pl.col("period_id") == "2024P5_Dec")
         legacy = summary.filter(pl.col("period_id") == "2024P3_JunAug")
         self.assertEqual(modern.select("pudo_collisions").item(), 5)
         self.assertEqual(
@@ -484,6 +490,15 @@ class TransformTests(unittest.TestCase):
         )
         self.assertEqual(
             modern.select("pudo_collision_primary_source").item(),
+            "Incidents-Location",
+        )
+        self.assertEqual(legacy_discrepancy.select("pudo_collisions").item(), 8)
+        self.assertEqual(
+            legacy_discrepancy.select("pudo_collision_reconciliation_gap").item(),
+            5,
+        )
+        self.assertEqual(
+            legacy_discrepancy.select("pudo_collision_primary_source").item(),
             "Incidents-Location",
         )
         self.assertEqual(legacy.select("pudo_collisions").item(), 3)

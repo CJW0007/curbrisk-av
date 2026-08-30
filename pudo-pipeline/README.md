@@ -72,10 +72,11 @@ if a required rate would be null.
 - `Y`/`N` flags become 1/0, while `Redacted`, blank, and NULL remain null.
   In particular, the public travel-lane field is not interpreted as zero when
   it is redacted.
-- For 2025+, collision frequency comes from the tract-level
-  `Incidents-Location.CollisionsPUDO` aggregate. Incident actor rows are used
-  for actor and severity cross-tabs. The summary retains both counts and their
-  reconciliation gap. Legacy 2024 counts remain visibly source-dependent.
+- Collision frequency uses the tract-level
+  `Incidents-Location.CollisionsPUDO` aggregate whenever it is available;
+  modern periods require it. Incident rows are used for actor and severity
+  cross-tabs. The summary retains both counts, the chosen source, and their
+  reconciliation gap—including the 2024 source discrepancies.
 - Severity flags are multi-label. The pipeline also emits one mutually
   exclusive highest-listed-severity indicator per PUDO collision row; a row
   without a positive severity flag is labeled `No listed severity flag`, not
