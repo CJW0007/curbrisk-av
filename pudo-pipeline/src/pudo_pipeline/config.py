@@ -80,7 +80,41 @@ COLLISION_PUDO_FLAGS = [
     "CollisionPUDORail",
     "CollisionPUDOProperty",
 ]
-COMPLAINT_KEEP = ["TCPID"] + COLLISION_PUDO_FLAGS + COMPLAINT_FLAGS
+COLLISION_SEVERITY_FLAGS = [
+    "CollisionSeverityPropertyDamage",
+    "CollisionSeverityInjuryPossible",
+    "CollisionSeverityInjuryMinor",
+    "CollisionSeverityInjurySevere",
+    "CollisionSeverityFatality",
+]
+
+# For 2025+ row-level files, collision severity can be linked to a PUDO
+# collision on the same row.  The 2024 aggregate files do not preserve that
+# linkage, so these derived fields remain null for legacy periods.
+PUDO_SEVERITY_MAP = {
+    "PUDOCollisionSeverityPropertyDamage": "CollisionSeverityPropertyDamage",
+    "PUDOCollisionSeverityInjuryPossible": "CollisionSeverityInjuryPossible",
+    "PUDOCollisionSeverityInjuryMinor": "CollisionSeverityInjuryMinor",
+    "PUDOCollisionSeverityInjurySevere": "CollisionSeverityInjurySevere",
+    "PUDOCollisionSeverityFatality": "CollisionSeverityFatality",
+}
+
+# Mutually exclusive, highest-observed-severity indicators.  The source
+# severity flags are multi-label (for example, a minor injury can also carry
+# ``InjuryPossible=Y``), so these columns are the safe ones to sum when a
+# distribution of unique PUDO collision outcomes is needed.
+PUDO_WORST_SEVERITY_COLUMNS = {
+    "Property damage": "PUDOCollisionWorstPropertyDamage",
+    "Possible injury": "PUDOCollisionWorstInjuryPossible",
+    "Minor injury": "PUDOCollisionWorstInjuryMinor",
+    "Severe injury": "PUDOCollisionWorstInjurySevere",
+    "Fatality": "PUDOCollisionWorstFatality",
+    "No listed severity flag": "PUDOCollisionWorstNoListedSeverity",
+}
+
+COMPLAINT_KEEP = (
+    ["TCPID"] + COLLISION_PUDO_FLAGS + COLLISION_SEVERITY_FLAGS + COMPLAINT_FLAGS
+)
 
 # Before 2025, CPUC published one aggregate row per reporting period.  From
 # 2025 onward the same concepts are represented as row-level Y/N flags.  Map
@@ -91,16 +125,78 @@ LEGACY_COUNT_MAP = {
     "CollisionPUDOAny": "CollisionsPUDOAll",
 }
 
+# Optional legacy totals that can be normalized without pretending that the
+# 2024 aggregate row has 2025+'s event-level linkage.
+LEGACY_OPTIONAL_COUNT_MAP = {
+    "ComplaintSafety": "ComplaintsSafety",
+    "ComplaintAccessibility": "ComplaintsAccessibility",
+    "ComplaintWAV": "ComplaintsWAV",
+    "ComplaintCustomerService": "ComplaintsCustomerService",
+    "ComplaintOther": "ComplaintsOther",
+    "CollisionPUDOPassenger": "CollisionsPUDOPassenger",
+    "CollisionPUDOPedestrian": "CollisionsPUDOPedestrian",
+    "CollisionPUDOBicycleScooter": "CollisionsPUDOBicycleScooter",
+    "CollisionPUDOMotorcycles": "CollisionsPUDOMotorcycles",
+    "CollisionPUDOOtherVehicle": "CollisionsPUDOOtherVehicle",
+    "CollisionPUDORail": "CollisionsPUDORail",
+    "CollisionPUDOProperty": "CollisionsPUDOProperty",
+    "CollisionSeverityPropertyDamage": "CollisionSeverityPropertyDamage",
+    "CollisionSeverityInjuryPossible": "CollisionSeverityInjuryPossible",
+    "CollisionSeverityInjuryMinor": "CollisionSeverityInjuryMinor",
+    "CollisionSeverityInjurySevere": "CollisionSeverityInjurySevere",
+    "CollisionSeverityFatality": "CollisionSeverityFatality",
+}
+
+# Optional consequence-related totals written to pudo_summary.parquet.
+SUMMARY_OPTIONAL_COUNTS = {
+    "pudo_complaint_collision_overlap": "PUDOComplaintCollisionOverlap",
+    "complaint_safety": "ComplaintSafety",
+    "complaint_accessibility": "ComplaintAccessibility",
+    "complaint_wav": "ComplaintWAV",
+    "complaint_customer_service": "ComplaintCustomerService",
+    "complaint_other": "ComplaintOther",
+    "pudo_collision_passenger": "CollisionPUDOPassenger",
+    "pudo_collision_pedestrian": "CollisionPUDOPedestrian",
+    "pudo_collision_bicycle_scooter": "CollisionPUDOBicycleScooter",
+    "pudo_collision_motorcycles": "CollisionPUDOMotorcycles",
+    "pudo_collision_other_vehicle": "CollisionPUDOOtherVehicle",
+    "pudo_collision_rail": "CollisionPUDORail",
+    "pudo_collision_property": "CollisionPUDOProperty",
+    "collision_severity_property_damage": "CollisionSeverityPropertyDamage",
+    "collision_severity_injury_possible": "CollisionSeverityInjuryPossible",
+    "collision_severity_injury_minor": "CollisionSeverityInjuryMinor",
+    "collision_severity_injury_severe": "CollisionSeverityInjurySevere",
+    "collision_severity_fatality": "CollisionSeverityFatality",
+    "pudo_collision_severity_property_damage": "PUDOCollisionSeverityPropertyDamage",
+    "pudo_collision_severity_injury_possible": "PUDOCollisionSeverityInjuryPossible",
+    "pudo_collision_severity_injury_minor": "PUDOCollisionSeverityInjuryMinor",
+    "pudo_collision_severity_injury_severe": "PUDOCollisionSeverityInjurySevere",
+    "pudo_collision_severity_fatality": "PUDOCollisionSeverityFatality",
+    "pudo_collision_severity_any_positive": "PUDOCollisionSeverityAnyPositive",
+    "pudo_collision_severity_minor_or_worse": "PUDOCollisionSeverityMinorOrWorse",
+    "pudo_collision_worst_property_damage": "PUDOCollisionWorstPropertyDamage",
+    "pudo_collision_worst_injury_possible": "PUDOCollisionWorstInjuryPossible",
+    "pudo_collision_worst_injury_minor": "PUDOCollisionWorstInjuryMinor",
+    "pudo_collision_worst_injury_severe": "PUDOCollisionWorstInjurySevere",
+    "pudo_collision_worst_fatality": "PUDOCollisionWorstFatality",
+    "pudo_collision_worst_no_listed_severity": "PUDOCollisionWorstNoListedSeverity",
+}
+
 # Month_Level columns (denominator / activity)
 MONTH_LEVEL_KEEP = [
     "TCPID",
     "Year",
     "Month",
     "TotalTrips",
+    "TotalWaiting",
     "TotalVMTPeriod1",
     "TotalVMTPeriod2",
     "TotalVMTPeriod3",
     "TotalVMTZEV",
     "TotalPassengersCarried",
     "TotalPMT",
+    "TotalWAVsAvail",
+    "TotalWAVsRequested",
+    "TotalWAVsDeclinedUnavail",
+    "TotalWAVsFulfilled",
 ]

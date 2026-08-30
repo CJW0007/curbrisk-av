@@ -4,9 +4,9 @@ Reproducible pipeline for analyzing **PUDO (pick-up/drop-off) complaint risk**
 in Waymo's CPUC AV Deployment quarterly reports, covering **2024 Q3 – 2026 Q2**.
 
 Downloads the public report zips from the CPUC website, extracts the
-Incidents-Complaints and Month-Level files, validates carrier identity and
-period coverage, and compiles them into three parquet datasets ready for
-analysis.
+Incidents-Complaints, Incidents-Location, and Month-Level files; validates
+carrier identity, redaction, schema, and period coverage; and compiles them
+into four parquet datasets ready for analysis.
 
 ## Quick start
 
@@ -37,9 +37,10 @@ Set `PUDO_DATA_DIR=/some/path` to relocate the data directory.
 
 | File | Grain | Contents |
 |---|---|---|
-| `complaints.parquet` | source-dependent | 2024 aggregate count rows and 2025+ row-level flags normalized to canonical count-contribution columns; `record_grain` identifies the source schema |
+| `complaints.parquet` | source-dependent | 2024 aggregate count rows and analytically relevant 2025+ event rows; flags are nullable and highest PUDO collision severity is mutually exclusive |
 | `monthly_activity.parquet` | one row per month | trips, VMT by period (P1 deadhead / P2 en-route / P3 passenger), `vmt_total`, PMT, passengers |
-| `pudo_summary.parquet` | one row per reporting period | PUDO complaint/travel-lane/collision counts joined to VMT & trips, rates per 100k, actual period midpoint and elapsed months |
+| `collision_locations.parquet` | one row per tract/reporting period | direct `CollisionsAll` and `CollisionsPUDO` aggregates used to reconcile row-level actor flags |
+| `pudo_summary.parquet` | one row per reporting period | complaints, primary/reconciled collision counts, severity counts, VMT/trips, rates, actual midpoint, and elapsed months |
 
 The build exits with an error instead of writing outputs if a reporting period
 or expected month is missing, if critical numeric fields cannot be parsed, or
@@ -64,13 +65,28 @@ if a required rate would be null.
 - CPUC changed complaint schemas in 2025. The pipeline maps legacy aggregate
   fields such as `ComplaintsPUDO` to the canonical count columns used for the
   2025+ row-level Y/N files.
+- Modern archives contain millions of repeated all-N/redacted template rows.
+  The loader projection- and stream-filters them instead of writing them as
+  pretend incidents or negative samples. The output is an analytic event view;
+  the source ZIP remains the audit record.
+- `Y`/`N` flags become 1/0, while `Redacted`, blank, and NULL remain null.
+  In particular, the public travel-lane field is not interpreted as zero when
+  it is redacted.
+- For 2025+, collision frequency comes from the tract-level
+  `Incidents-Location.CollisionsPUDO` aggregate. Incident actor rows are used
+  for actor and severity cross-tabs. The summary retains both counts and their
+  reconciliation gap. Legacy 2024 counts remain visibly source-dependent.
+- Severity flags are multi-label. The pipeline also emits one mutually
+  exclusive highest-listed-severity indicator per PUDO collision row; a row
+  without a positive severity flag is labeled `No listed severity flag`, not
+  `no harm`.
 - CPUC renamed the fleet-level monthly file from `Month_Level` to
   `Month_Part0` in 2026. Both names are accepted, while `Monthly_Tract` files
   are deliberately excluded.
 - The Jun–Aug 2024 zip also contains Cruise files. The loader excludes Drivered
   folders and filters the carrier identifiers to Waymo before aggregation.
-- Legacy travel-lane PUDO totals may be redacted. These remain null (unknown),
-  rather than being converted to zero.
+- Legacy and modern travel-lane PUDO totals may be redacted. These remain null
+  (unknown), rather than being converted to zero.
 - CPUC uses comma-formatted numeric strings. The parser removes thousands
   separators before conversion and fails fast if critical values remain null.
 - Source page: CPUC AV Program Quarterly Reporting

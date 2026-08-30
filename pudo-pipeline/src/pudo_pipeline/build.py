@@ -17,6 +17,7 @@ from .download import download_all, extract_all
 from .transform import (
     DataValidationError,
     build_summary,
+    load_collision_locations,
     load_complaints,
     load_monthly,
 )
@@ -41,15 +42,17 @@ def main() -> None:
     try:
         complaints = load_complaints(extracted)
         monthly = load_monthly(extracted)
-        summary = build_summary(complaints, monthly)
+        locations = load_collision_locations(extracted)
+        summary = build_summary(complaints, monthly, locations)
     except (DataValidationError, FileNotFoundError) as exc:
         parser.exit(2, f"[error] data validation failed: {exc}\n")
 
     complaints.write_parquet(out / "complaints.parquet")
     monthly.write_parquet(out / "monthly_activity.parquet")
+    locations.write_parquet(out / "collision_locations.parquet")
     summary.write_parquet(out / "pudo_summary.parquet")
 
-    print(f"\n[done] wrote 3 parquet files to {out}/")
+    print(f"\n[done] validation passed; wrote 4 parquet files to {out}/")
     print(summary)
 
 

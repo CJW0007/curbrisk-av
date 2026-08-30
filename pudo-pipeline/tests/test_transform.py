@@ -11,6 +11,7 @@ from pudo_pipeline.config import PERIODS
 from pudo_pipeline.transform import (
     DataValidationError,
     build_summary,
+    load_collision_locations,
     load_complaints,
     load_monthly,
 )
@@ -139,8 +140,10 @@ class TransformTests(unittest.TestCase):
             fields = [
                 "TCPID",
                 "ComplaintsPUDO",
+                "ComplaintsSafety",
                 "PUDOTravelLaneAll",
                 "CollisionsPUDOAll",
+                "CollisionSeverityInjurySevere",
             ]
             write_csv(
                 root / "2024P4_SepNov" / "Waymo_Incidents-Complaints_Part0.csv",
@@ -149,8 +152,10 @@ class TransformTests(unittest.TestCase):
                     {
                         "TCPID": "PSG0038152",
                         "ComplaintsPUDO": "40",
+                        "ComplaintsSafety": "102",
                         "PUDOTravelLaneAll": "Redacted",
                         "CollisionsPUDOAll": "22",
+                        "CollisionSeverityInjurySevere": "0",
                     }
                 ],
             )
@@ -161,8 +166,10 @@ class TransformTests(unittest.TestCase):
                     {
                         "TCPID": "PSG0039080",
                         "ComplaintsPUDO": "999",
+                        "ComplaintsSafety": "999",
                         "PUDOTravelLaneAll": "999",
                         "CollisionsPUDOAll": "999",
+                        "CollisionSeverityInjurySevere": "999",
                     }
                 ],
             )
@@ -173,9 +180,15 @@ class TransformTests(unittest.TestCase):
                 "ComplaintPUDO",
                 "PUDOTravelLane",
                 "CollisionPUDOAny",
+                "ComplaintSafety",
+                "CollisionSeverityInjurySevere",
+                "PUDOCollisionSeverityInjurySevere",
                 "record_grain",
             ).row(0)
-            self.assertEqual(row, (40, None, 22, "period_aggregate"))
+            self.assertEqual(
+                row,
+                (40, None, 22, 102, 0, None, "period_aggregate"),
+            )
 
     def test_waymo_filter_and_published_tcpid_typo(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -185,6 +198,7 @@ class TransformTests(unittest.TestCase):
                 "PUDOTravelLane",
                 "ComplaintPUDO",
                 "CollisionPUDOPassenger",
+                "CollisionSeverityInjurySevere",
             ]
             write_csv(
                 root / "2025Q1" / "Waymo_Incidents_Complaints_Part1.csv",
@@ -195,18 +209,21 @@ class TransformTests(unittest.TestCase):
                         "PUDOTravelLane": "N",
                         "ComplaintPUDO": "Y",
                         "CollisionPUDOPassenger": "N",
+                        "CollisionSeverityInjurySevere": "Y",
                     },
                     {
                         "TCPID": "PSG0031852",
                         "PUDOTravelLane": "N",
                         "ComplaintPUDO": "N",
                         "CollisionPUDOPassenger": "Y",
+                        "CollisionSeverityInjurySevere": "Y",
                     },
                     {
                         "TCPID": "PSG0099999",
                         "PUDOTravelLane": "N",
                         "ComplaintPUDO": "Y",
                         "CollisionPUDOPassenger": "Y",
+                        "CollisionSeverityInjurySevere": "Y",
                     },
                 ],
             )
@@ -216,8 +233,152 @@ class TransformTests(unittest.TestCase):
                 pl.len(),
                 pl.col("ComplaintPUDO").sum(),
                 pl.col("CollisionPUDOAny").sum(),
+                pl.col("CollisionSeverityInjurySevere").sum(),
+                pl.col("PUDOCollisionSeverityInjurySevere").sum(),
+                pl.col("PUDOComplaintCollisionOverlap").sum(),
             ).row(0)
-            self.assertEqual(totals, (2, 1, 1))
+            # The non-PUDO severe row is retained as an all-collision severity
+            # signal, but only the row with a PUDO collision contributes to
+            # the PUDO-specific severe consequence count.
+            self.assertEqual(totals, (2, 1, 1, 2, 1, 0))
+
+    def test_redacted_flags_stay_null_and_all_n_templates_are_dropped(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fields = [
+                "TCPID",
+                "PUDOTravelLane",
+                "ComplaintPUDO",
+                "CollisionPUDOOtherVehicle",
+                "CollisionSeverityInjuryPossible",
+            ]
+            write_csv(
+                root / "2025Q1" / "Waymo_Incidents_Complaints_Part0.csv",
+                fields,
+                [
+                    {
+                        "TCPID": "PSG0038152",
+                        "PUDOTravelLane": "Redacted",
+                        "ComplaintPUDO": "N",
+                        "CollisionPUDOOtherVehicle": "N",
+                        "CollisionSeverityInjuryPossible": "N",
+                    },
+                    {
+                        "TCPID": "PSG0038152",
+                        "PUDOTravelLane": "Redacted",
+                        "ComplaintPUDO": "Y",
+                        "CollisionPUDOOtherVehicle": "N",
+                        "CollisionSeverityInjuryPossible": "N",
+                    },
+                ],
+            )
+
+            complaints = load_complaints(root)
+            self.assertEqual(complaints.height, 1)
+            self.assertIsNone(complaints.select("PUDOTravelLane").item())
+            self.assertEqual(complaints.select("ComplaintPUDO").item(), 1)
+
+    def test_location_aggregate_is_primary_for_modern_collision_frequency(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fields = [
+                "TCPID",
+                "Year",
+                "Quarter",
+                "Tract",
+                "CollisionsAll",
+                "CollisionsPUDO",
+                "PUDOTravelLane",
+            ]
+            write_csv(
+                root
+                / "2025Q1"
+                / "Driverless"
+                / "Waymo_AV_Incidents-Location_Part0.csv",
+                fields,
+                [
+                    {
+                        "TCPID": "PSG0038152",
+                        "Year": "2025",
+                        "Quarter": "1",
+                        "Tract": "1",
+                        "CollisionsAll": "20",
+                        "CollisionsPUDO": "34",
+                        "PUDOTravelLane": "Redacted",
+                    }
+                ],
+            )
+            locations = load_collision_locations(root)
+            self.assertEqual(locations.select("CollisionsPUDO").item(), 34)
+            self.assertIsNone(locations.select("PUDOTravelLane").item())
+
+    def test_worst_severity_is_mutually_exclusive(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fields = [
+                "TCPID",
+                "PUDOTravelLane",
+                "ComplaintPUDO",
+                "CollisionPUDOPassenger",
+                "CollisionSeverityInjuryPossible",
+                "CollisionSeverityInjuryMinor",
+                "CollisionSeverityInjurySevere",
+            ]
+            write_csv(
+                root / "2026Q2" / "Waymo_Incidents_Complaints_Part0.csv",
+                fields,
+                [
+                    {
+                        "TCPID": "PSG0038152",
+                        "PUDOTravelLane": "Redacted",
+                        "ComplaintPUDO": "N",
+                        "CollisionPUDOPassenger": "Y",
+                        "CollisionSeverityInjuryPossible": "Y",
+                        "CollisionSeverityInjuryMinor": "N",
+                        "CollisionSeverityInjurySevere": "Y",
+                    }
+                ],
+            )
+            complaints = load_complaints(root)
+            row = complaints.select(
+                "PUDOCollisionWorstSeverity",
+                "PUDOCollisionWorstInjuryPossible",
+                "PUDOCollisionWorstInjurySevere",
+                "PUDOCollisionSeverityAnyPositive",
+                "PUDOCollisionSeverityMinorOrWorse",
+            ).row(0)
+            self.assertEqual(row, ("Severe injury", 0, 1, 1, 1))
+
+    def test_non_pudo_severity_does_not_count_as_pudo_consequence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fields = [
+                "TCPID",
+                "PUDOTravelLane",
+                "ComplaintPUDO",
+                "CollisionPUDOPassenger",
+                "CollisionSeverityInjurySevere",
+            ]
+            write_csv(
+                root / "2025Q1" / "Waymo_Incidents_Complaints_Part0.csv",
+                fields,
+                [
+                    {
+                        "TCPID": "PSG0038152",
+                        "PUDOTravelLane": "Redacted",
+                        "ComplaintPUDO": "N",
+                        "CollisionPUDOPassenger": "N",
+                        "CollisionSeverityInjurySevere": "Y",
+                    }
+                ],
+            )
+            complaints = load_complaints(root)
+            self.assertEqual(
+                complaints.select("PUDOCollisionSeverityAnyPositive").item(), 0
+            )
+            self.assertIsNone(
+                complaints.select("PUDOCollisionWorstSeverity").item()
+            )
 
     def test_summary_requires_every_reporting_period(self) -> None:
         complaints = pl.DataFrame(
@@ -277,6 +438,78 @@ class TransformTests(unittest.TestCase):
             "pudo_per_100k_vmt"
         ).item()
         self.assertEqual(dec_rate, 100.0)
+
+    def test_summary_prefers_location_collisions_for_modern_periods(self) -> None:
+        complaints = pl.DataFrame(
+            {
+                "period_id": list(PERIODS),
+                "ComplaintPUDO": [1] * len(PERIODS),
+                "PUDOTravelLane": [None] * len(PERIODS),
+                "CollisionPUDOAny": [3] * len(PERIODS),
+            }
+        )
+        monthly_rows = [
+            {
+                "period_id": period,
+                "year": year,
+                "month": month,
+                "vmt_total": 1000.0,
+                "TotalTrips": 100.0,
+            }
+            for period, (_, months) in PERIODS.items()
+            for year, month in months
+        ]
+        modern_periods = [
+            period for period in PERIODS if period.startswith(("2025", "2026"))
+        ]
+        locations = pl.DataFrame(
+            {
+                "period_id": modern_periods,
+                "CollisionsAll": [10] * len(modern_periods),
+                "CollisionsPUDO": [5] * len(modern_periods),
+                "PUDOTravelLane": [None] * len(modern_periods),
+            }
+        )
+
+        summary = build_summary(
+            complaints,
+            pl.DataFrame(monthly_rows),
+            locations,
+        )
+        modern = summary.filter(pl.col("period_id") == "2025Q1")
+        legacy = summary.filter(pl.col("period_id") == "2024P3_JunAug")
+        self.assertEqual(modern.select("pudo_collisions").item(), 5)
+        self.assertEqual(
+            modern.select("pudo_collision_reconciliation_gap").item(), 2
+        )
+        self.assertEqual(
+            modern.select("pudo_collision_primary_source").item(),
+            "Incidents-Location",
+        )
+        self.assertEqual(legacy.select("pudo_collisions").item(), 3)
+
+    def test_summary_rejects_empty_risk_rates(self) -> None:
+        complaints = pl.DataFrame(
+            {
+                "period_id": list(PERIODS),
+                "ComplaintPUDO": [1] * len(PERIODS),
+                "PUDOTravelLane": [None] * len(PERIODS),
+                "CollisionPUDOAny": [0] * len(PERIODS),
+            }
+        )
+        monthly_rows = [
+            {
+                "period_id": period,
+                "year": year,
+                "month": month,
+                "vmt_total": 0.0,
+                "TotalTrips": 0.0,
+            }
+            for period, (_, months) in PERIODS.items()
+            for year, month in months
+        ]
+        with self.assertRaisesRegex(DataValidationError, "null critical values"):
+            build_summary(complaints, pl.DataFrame(monthly_rows))
 
 
 if __name__ == "__main__":

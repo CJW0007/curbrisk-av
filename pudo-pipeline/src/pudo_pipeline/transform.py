@@ -2,9 +2,10 @@
 
 Outputs
 -------
-complaints    one row per reported incident, Y/N flags as booleans,
-              tagged with period_id / year / quarter / company.
+complaints    one row per analytically relevant reported event, nullable Y/N
+              flags, tagged with period_id / year / quarter / company.
 monthly       one row per (year, month) of fleet activity (trips, VMT, PMT).
+locations     one row per tract in the Incidents-Location source.
 summary       one row per reporting period: PUDO counts joined to exposure,
               with complaints-per-100k-VMT rates.
 
@@ -16,12 +17,16 @@ Notes
 * TimeofIncident is redacted, so complaints carry period-level dates only
   (month is null). Month_Level has true Year/Month, so quarter columns there
   are real calendar quarters.
-* Columns that are entirely "Redacted" or NULL are dropped; per-row
-  "Redacted" strings in kept columns become nulls.
+* Per-row "Redacted" strings become nulls and are never converted to False.
+* 2025+ source files contain millions of repeated all-N template rows.  The
+  analytic event output retains rows with at least one positive relevant flag;
+  raw source files remain the audit record.
 """
 
 from __future__ import annotations
 
+import csv
+from collections.abc import Sequence
 from datetime import date
 from pathlib import Path
 
@@ -32,9 +37,14 @@ from .config import (
     COMPANY_TCPIDS,
     COMPLAINT_FLAGS,
     COLLISION_PUDO_FLAGS,
+    COLLISION_SEVERITY_FLAGS,
     LEGACY_COUNT_MAP,
+    LEGACY_OPTIONAL_COUNT_MAP,
     MONTH_LEVEL_KEEP,
     PERIODS,
+    PUDO_SEVERITY_MAP,
+    PUDO_WORST_SEVERITY_COLUMNS,
+    SUMMARY_OPTIONAL_COUNTS,
 )
 
 
@@ -42,18 +52,56 @@ class DataValidationError(ValueError):
     """Raised when source data are present but cannot support valid rates."""
 
 
-def _read_csv_str(path: Path) -> pl.DataFrame:
-    """Read everything as strings; normalize 'Redacted'/'NULL' to null."""
-    df = pl.read_csv(path, infer_schema_length=0, ignore_errors=True)
-    return df.with_columns(
+def _csv_columns(path: Path) -> list[str]:
+    """Read only the CSV header without scanning a multi-million-row part."""
+    with path.open(newline="", encoding="utf-8-sig") as handle:
+        return next(csv.reader(handle))
+
+
+def _read_csv_str(
+    path: Path,
+    columns: Sequence[str] | None = None,
+    positive_filter_columns: Sequence[str] | None = None,
+) -> pl.DataFrame:
+    """Read selected columns as strings and normalize redaction to null.
+
+    When ``positive_filter_columns`` is supplied, Polars applies the filter
+    while scanning.  This prevents CPUC's multi-million-row all-N template
+    parts from being materialized as pretend incidents.
+    """
+    lazy = pl.scan_csv(
+        path,
+        infer_schema_length=0,
+        ignore_errors=True,
+    )
+    if columns is not None:
+        lazy = lazy.select(list(columns))
+    lazy = lazy.with_columns(
         pl.all()
         .str.strip_chars()
         .replace(["Redacted", "REDACTED", "NULL", "null", ""], None)
     )
+    if positive_filter_columns:
+        present = [c for c in positive_filter_columns if c in lazy.collect_schema()]
+        if present:
+            lazy = lazy.filter(
+                pl.any_horizontal(
+                    [pl.col(c).str.to_uppercase().eq("Y").fill_null(False) for c in present]
+                )
+            )
+    return lazy.collect(engine="streaming")
 
 
 def _flag_to_bool(col: str) -> pl.Expr:
-    return (pl.col(col) == "Y").fill_null(False).alias(col)
+    """Map Y/N to nullable booleans; redacted/blank stays unknown."""
+    return (
+        pl.when(pl.col(col) == "Y")
+        .then(True)
+        .when(pl.col(col) == "N")
+        .then(False)
+        .otherwise(None)
+        .alias(col)
+    )
 
 
 def _numeric_expr(col: str, dtype: pl.DataType = pl.Float64) -> pl.Expr:
@@ -76,6 +124,12 @@ def _is_month_summary_source(path: Path) -> bool:
     """
     name = path.name.lower().replace(" ", "_").replace("-", "_")
     return "month_level" in name or "month_part" in name
+
+
+def _is_incidents_location_source(path: Path) -> bool:
+    """Recognize tract-level incident location files across name variants."""
+    name = path.name.lower().replace(" ", "_").replace("-", "_")
+    return "incidents_location" in name
 
 
 def _waymo_rows(df: pl.DataFrame, path: Path) -> pl.DataFrame:
@@ -113,18 +167,91 @@ def _canonical_row_level(df: pl.DataFrame, period_id: str, source: Path) -> pl.D
         raise DataValidationError(f"{source} has no row-level PUDO collision columns")
 
     kept_flags = [
-        c for c in COMPLAINT_FLAGS + COLLISION_PUDO_FLAGS if c in df.columns
+        c
+        for c in COMPLAINT_FLAGS + COLLISION_PUDO_FLAGS + COLLISION_SEVERITY_FLAGS
+        if c in df.columns
     ]
     out = df.select(["TCPID"] + kept_flags).with_columns(
         [_flag_to_bool(c) for c in kept_flags]
     )
     out = out.with_columns(
-        pl.any_horizontal(collision_cols).alias("CollisionPUDOAny")
+        pl.any_horizontal(
+            [pl.col(c).fill_null(False) for c in collision_cols]
+        ).alias("CollisionPUDOAny")
+    )
+    present_severity = {
+        canonical: raw
+        for canonical, raw in PUDO_SEVERITY_MAP.items()
+        if raw in out.columns
+    }
+    out = out.with_columns(
+        [
+            (pl.col(raw).fill_null(False) & pl.col("CollisionPUDOAny"))
+            .cast(pl.Int64)
+            .alias(canonical)
+            for canonical, raw in present_severity.items()
+        ]
+        + [
+            pl.lit(None, dtype=pl.Int64).alias(canonical)
+            for canonical in PUDO_SEVERITY_MAP
+            if canonical not in present_severity
+        ]
+        + [
+            (pl.col("ComplaintPUDO").fill_null(False) & pl.col("CollisionPUDOAny"))
+            .cast(pl.Int64)
+            .alias("PUDOComplaintCollisionOverlap")
+        ]
+    )
+    severity_order = [
+        ("Fatality", "CollisionSeverityFatality"),
+        ("Severe injury", "CollisionSeverityInjurySevere"),
+        ("Minor injury", "CollisionSeverityInjuryMinor"),
+        ("Possible injury", "CollisionSeverityInjuryPossible"),
+        ("Property damage", "CollisionSeverityPropertyDamage"),
+    ]
+    worst = pl.lit("No listed severity flag")
+    for label, raw in reversed(severity_order):
+        if raw in out.columns:
+            worst = pl.when(pl.col(raw).fill_null(False)).then(pl.lit(label)).otherwise(worst)
+    out = out.with_columns(
+        pl.when(pl.col("CollisionPUDOAny"))
+        .then(worst)
+        .otherwise(None)
+        .alias("PUDOCollisionWorstSeverity")
     ).with_columns(
         [
-            pl.col(c).cast(pl.Int64)
-            for c in kept_flags + ["CollisionPUDOAny"]
+            (
+                (pl.col("PUDOCollisionWorstSeverity") == label)
+                .fill_null(False)
+                .cast(pl.Int64)
+                .alias(column)
+            )
+            for label, column in PUDO_WORST_SEVERITY_COLUMNS.items()
         ]
+        + [
+            (
+                pl.col("CollisionPUDOAny")
+                & (
+                    pl.any_horizontal(
+                        [
+                            pl.col(c).fill_null(False)
+                            for c in present_severity.values()
+                        ]
+                    )
+                    if present_severity
+                    else pl.lit(False)
+                )
+            )
+            .cast(pl.Int64)
+            .alias("PUDOCollisionSeverityAnyPositive"),
+            pl.col("PUDOCollisionWorstSeverity")
+            .is_in(["Minor injury", "Severe injury", "Fatality"])
+            .fill_null(False)
+            .cast(pl.Int64)
+            .alias("PUDOCollisionSeverityMinorOrWorse"),
+        ]
+    ).with_columns(
+        [pl.col(c).cast(pl.Int64) for c in kept_flags + ["CollisionPUDOAny"]]
     )
     return out.with_columns(_metadata_columns(period_id, source, "row_level"))
 
@@ -134,19 +261,37 @@ def _canonical_legacy(df: pl.DataFrame, period_id: str, source: Path) -> pl.Data
     if missing:
         raise DataValidationError(f"{source} is missing legacy aggregate columns: {missing}")
 
+    optional = {
+        canonical: old
+        for canonical, old in LEGACY_OPTIONAL_COUNT_MAP.items()
+        if old in df.columns
+    }
+    mappings = {**LEGACY_COUNT_MAP, **optional}
     expressions = [
         _numeric_expr(old, pl.Int64).alias(canonical)
-        for canonical, old in LEGACY_COUNT_MAP.items()
+        for canonical, old in mappings.items()
     ]
-    out = df.select(["TCPID"] + list(LEGACY_COUNT_MAP.values())).with_columns(
+    out = df.select(["TCPID"] + list(mappings.values())).with_columns(
         expressions
-    ).select(["TCPID"] + list(LEGACY_COUNT_MAP))
+    ).select(["TCPID"] + list(mappings))
     # Some legacy reports redact travel-lane totals.  Preserve that as null;
     # it is not equivalent to a reported zero.  Complaint and collision totals
     # are required for the primary analysis.
     critical = ["ComplaintPUDO", "CollisionPUDOAny"]
     if out.select(pl.any_horizontal([pl.col(c).is_null() for c in critical])).item():
         raise DataValidationError(f"{source} contains unparseable legacy PUDO counts")
+    # Legacy severity totals cover all collisions. They cannot be linked back
+    # specifically to the aggregate PUDO collision count.
+    out = out.with_columns(
+        [pl.lit(None, dtype=pl.Int64).alias(c) for c in PUDO_SEVERITY_MAP]
+        + [pl.lit(None, dtype=pl.Utf8).alias("PUDOCollisionWorstSeverity")]
+        + [pl.lit(None, dtype=pl.Int64).alias(c) for c in PUDO_WORST_SEVERITY_COLUMNS.values()]
+        + [
+            pl.lit(None, dtype=pl.Int64).alias("PUDOCollisionSeverityAnyPositive"),
+            pl.lit(None, dtype=pl.Int64).alias("PUDOCollisionSeverityMinorOrWorse"),
+            pl.lit(None, dtype=pl.Int64).alias("PUDOComplaintCollisionOverlap"),
+        ]
+    )
     return out.with_columns(_metadata_columns(period_id, source, "period_aggregate"))
 
 
@@ -195,7 +340,46 @@ def load_complaints(extract_dir: Path) -> pl.DataFrame:
             and _is_driverless_source(f)
         )
         for f in files:
-            df = _waymo_rows(_read_csv_str(f), f)
+            source_columns = _csv_columns(f)
+            if "ComplaintPUDO" in source_columns:
+                wanted = [
+                    c
+                    for c in [
+                        "TCPID",
+                        *COMPLAINT_FLAGS,
+                        *COLLISION_PUDO_FLAGS,
+                        *COLLISION_SEVERITY_FLAGS,
+                    ]
+                    if c in source_columns
+                ]
+            elif "ComplaintsPUDO" in source_columns:
+                wanted = [
+                    c
+                    for c in [
+                        "TCPID",
+                        *LEGACY_COUNT_MAP.values(),
+                        *LEGACY_OPTIONAL_COUNT_MAP.values(),
+                    ]
+                    if c in source_columns
+                ]
+            else:
+                raise DataValidationError(f"Unrecognized complaints schema in {f}")
+            df = _waymo_rows(
+                _read_csv_str(
+                    f,
+                    wanted,
+                    positive_filter_columns=(
+                        [
+                            *COMPLAINT_FLAGS,
+                            *COLLISION_PUDO_FLAGS,
+                            *COLLISION_SEVERITY_FLAGS,
+                        ]
+                        if "ComplaintPUDO" in source_columns
+                        else None
+                    ),
+                ),
+                f,
+            )
             if df.height == 0:
                 continue
             if "ComplaintPUDO" in df.columns:
@@ -209,6 +393,71 @@ def load_complaints(extract_dir: Path) -> pl.DataFrame:
     return pl.concat(frames, how="diagonal")
 
 
+def load_collision_locations(extract_dir: Path) -> pl.DataFrame:
+    """Load tract aggregates used as the authoritative 2025+ collision count.
+
+    Incident actor flags can miss collisions whose subtype is not published.
+    Location aggregates therefore supply frequency, while incident rows retain
+    their separate role for actor and severity cross-tabs.
+    """
+    frames = []
+    required = [
+        "TCPID",
+        "Year",
+        "Quarter",
+        "Tract",
+        "CollisionsAll",
+        "CollisionsPUDO",
+        "PUDOTravelLane",
+    ]
+    for period_id in PERIODS:
+        pdir = extract_dir / period_id
+        if not pdir.exists():
+            continue
+        files = sorted(
+            f
+            for f in pdir.rglob("*.csv")
+            if _is_incidents_location_source(f) and _is_driverless_source(f)
+        )
+        for f in files:
+            source_columns = _csv_columns(f)
+            missing = sorted(set(required) - set(source_columns))
+            if missing:
+                raise DataValidationError(f"{f} is missing location columns: {missing}")
+            df = _waymo_rows(_read_csv_str(f, required), f)
+            if df.height == 0:
+                continue
+            frame = df.with_columns(
+                _numeric_expr("CollisionsAll", pl.Int64),
+                _numeric_expr("CollisionsPUDO", pl.Int64),
+                _numeric_expr("PUDOTravelLane", pl.Int64),
+                *_metadata_columns(period_id, f, "tract_aggregate"),
+            )
+            if frame.select(
+                pl.any_horizontal(
+                    pl.col("CollisionsAll").is_null(),
+                    pl.col("CollisionsPUDO").is_null(),
+                ).any()
+            ).item():
+                raise DataValidationError(f"{f} contains unparseable collision counts")
+            frames.append(frame)
+    if not frames:
+        raise FileNotFoundError(f"No Incidents-Location CSVs found under {extract_dir}")
+    return pl.concat(frames, how="diagonal").unique(
+        subset=[
+            "period_id",
+            "TCPID",
+            "Year",
+            "Quarter",
+            "Tract",
+            "CollisionsAll",
+            "CollisionsPUDO",
+            "PUDOTravelLane",
+        ],
+        keep="last",
+    )
+
+
 def load_monthly(extract_dir: Path) -> pl.DataFrame:
     frames = []
     for period_id in PERIODS:
@@ -220,7 +469,9 @@ def load_monthly(extract_dir: Path) -> pl.DataFrame:
                 continue
             if not _is_driverless_source(f):
                 continue
-            df = _waymo_rows(_read_csv_str(f), f)
+            source_columns = _csv_columns(f)
+            wanted = [c for c in MONTH_LEVEL_KEEP if c in source_columns]
+            df = _waymo_rows(_read_csv_str(f, wanted), f)
             if df.height == 0:
                 continue
             keep = [c for c in MONTH_LEVEL_KEEP if c in df.columns]
@@ -291,18 +542,86 @@ def _require_periods(frame: pl.DataFrame, label: str) -> None:
         raise DataValidationError(f"{label} are missing reporting periods: {missing}")
 
 
-def build_summary(complaints: pl.DataFrame, monthly: pl.DataFrame) -> pl.DataFrame:
+def build_summary(
+    complaints: pl.DataFrame,
+    monthly: pl.DataFrame,
+    locations: pl.DataFrame | None = None,
+) -> pl.DataFrame:
     _require_periods(complaints, "Complaint data")
     _require_periods(monthly, "Month-Level data")
 
+    optional_counts = [
+        pl.when(pl.col(source).is_not_null().any())
+        .then(pl.col(source).sum())
+        .otherwise(None)
+        .alias(alias)
+        for alias, source in SUMMARY_OPTIONAL_COUNTS.items()
+        if source in complaints.columns
+    ]
     counts = complaints.group_by("period_id").agg(
         pl.col("ComplaintPUDO").sum().alias("pudo_complaints"),
-        pl.when(pl.col("PUDOTravelLane").is_not_null().any())
+        pl.when(pl.col("PUDOTravelLane").is_null().any())
+        .then(None)
+        .when(pl.col("PUDOTravelLane").is_not_null().any())
         .then(pl.col("PUDOTravelLane").sum())
         .otherwise(None)
         .alias("pudo_travel_lane"),
-        pl.col("CollisionPUDOAny").sum().alias("pudo_collisions"),
-        pl.len().alias("total_incident_rows"),
+        pl.col("CollisionPUDOAny").sum().alias("pudo_collisions_incident_report"),
+        pl.len().alias("retained_event_rows"),
+        *optional_counts,
+    )
+
+    if locations is not None:
+        modern_periods = [p for p in PERIODS if p.startswith(("2025", "2026"))]
+        actual_location_periods = set(locations.get_column("period_id").unique())
+        missing_modern = [p for p in modern_periods if p not in actual_location_periods]
+        if missing_modern:
+            raise DataValidationError(
+                f"Incidents-Location data are missing modern periods: {missing_modern}"
+            )
+        location_counts = locations.group_by("period_id").agg(
+            pl.col("CollisionsAll").sum().alias("collisions_all_location"),
+            pl.col("CollisionsPUDO").sum().alias("pudo_collisions_location"),
+            pl.when(pl.col("PUDOTravelLane").is_null().any())
+            .then(None)
+            .otherwise(pl.col("PUDOTravelLane").sum())
+            .alias("pudo_travel_lane_location"),
+            pl.len().alias("location_tract_rows"),
+        )
+        counts = counts.join(location_counts, on="period_id", how="left")
+    else:
+        counts = counts.with_columns(
+            pl.lit(None, dtype=pl.Int64).alias("collisions_all_location"),
+            pl.lit(None, dtype=pl.Int64).alias("pudo_collisions_location"),
+            pl.lit(None, dtype=pl.Int64).alias("pudo_travel_lane_location"),
+            pl.lit(None, dtype=pl.UInt32).alias("location_tract_rows"),
+        )
+
+    counts = counts.with_columns(
+        pl.when(
+            (
+                pl.col("period_id").str.starts_with("2025")
+                | pl.col("period_id").str.starts_with("2026")
+            )
+            & pl.col("pudo_collisions_location").is_not_null()
+        )
+        .then(pl.col("pudo_collisions_location"))
+        .otherwise(pl.col("pudo_collisions_incident_report"))
+        .alias("pudo_collisions"),
+        (
+            pl.col("pudo_collisions_location")
+            - pl.col("pudo_collisions_incident_report")
+        ).alias("pudo_collision_reconciliation_gap"),
+        pl.when(
+            (
+                pl.col("period_id").str.starts_with("2025")
+                | pl.col("period_id").str.starts_with("2026")
+            )
+            & pl.col("pudo_collisions_location").is_not_null()
+        )
+        .then(pl.lit("Incidents-Location"))
+        .otherwise(pl.lit("legacy Incidents-Complaints aggregate"))
+        .alias("pudo_collision_primary_source"),
     )
 
     # Exposure: sum monthly VMT over the exact months each period covers
