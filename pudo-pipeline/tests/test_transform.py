@@ -26,7 +26,7 @@ def write_csv(path: Path, fieldnames: list[str], rows: list[dict]) -> None:
 
 
 class TransformTests(unittest.TestCase):
-    def test_monthly_numbers_with_commas(self) -> None:
+    def test_monthly_numbers_with_commas_and_currency_symbol(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             fields = [
@@ -49,7 +49,7 @@ class TransformTests(unittest.TestCase):
                     "TotalVMTPeriod3": p3,
                 }
                 for month, trips, p1, p2, p3 in [
-                    (1, "550,457", "1,430,498.32", "416,489.71", "1,634,709.90"),
+                    (1, "550,457", "$1,430,498.32", "416,489.71", "1,634,709.90"),
                     (2, "559,569", "1,326,808.24", "418,558.69", "1,740,554.80"),
                     (3, "708,180", "1,466,872.84", "541,715.75", "2,257,392.91"),
                 ]
@@ -311,6 +311,38 @@ class TransformTests(unittest.TestCase):
             locations = load_collision_locations(root)
             self.assertEqual(locations.select("CollisionsPUDO").item(), 34)
             self.assertIsNone(locations.select("PUDOTravelLane").item())
+
+    def test_conflicting_location_revisions_fail_instead_of_double_counting(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fields = [
+                "TCPID",
+                "Year",
+                "Quarter",
+                "Tract",
+                "CollisionsAll",
+                "CollisionsPUDO",
+                "PUDOTravelLane",
+            ]
+            rows = [
+                {
+                    "TCPID": "PSG0038152",
+                    "Year": "2025",
+                    "Quarter": "1",
+                    "Tract": "1",
+                    "CollisionsAll": "20",
+                    "CollisionsPUDO": count,
+                    "PUDOTravelLane": "Redacted",
+                }
+                for count in ["34", "35"]
+            ]
+            write_csv(
+                root / "2025Q1" / "Waymo_AV_Incidents-Location_Part0.csv",
+                fields,
+                rows,
+            )
+            with self.assertRaisesRegex(DataValidationError, "Conflicting"):
+                load_collision_locations(root)
 
     def test_worst_severity_is_mutually_exclusive(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -226,7 +226,7 @@ Pipeline 输出：
 
 验证：
 
-- 13/13 自动化测试通过；
+- 14/14 自动化测试通过（含同一 tract 冲突重报防重复计数）；
 - 端到端 CLI 构建通过；
 - Notebook 20/20 代码单元格执行通过；
 - Python compile、Notebook validation、`git diff --check` 通过。
@@ -243,3 +243,24 @@ python -m unittest discover -s tests -v
 
 如果团队以后采用正式 likelihood/consequence 阈值，只需修改 Notebook 的
 scenario rubric，不需要重新定义底层 numerator、exposure 或 severity hierarchy。
+
+## 8. Jonathan 最新提交 `42a8ab0` 的整合审查
+
+2026-08-30 重新抓取并逐文件比较了 Jonathan 的 `main`。该提交正确识别了
+逗号数字、2024/2025 两套 schema、Waymo TCPID 变体、2026 文件名和 exposure
+offset 等方向，但不能整包覆盖本分支：
+
+- 它把约 `23,825,756` 条 all-N/redacted 模板重复行称为 rides，并据此计算
+  `per-million-rides`，该分母没有统计意义；
+- headline NB 模型混合 2024 aggregate 与 2025+ row schema，无法区分时间趋势
+  与 schema level shift；
+- collision 仍采用 actor flags/legacy aggregate，分别漏掉 2024-12 的 8 次、
+  2025 Q1 的 1 次和 2026 Q2 的 2 次 location collisions；
+- Notebook 没有读取 severity，却声称没有 severe PUDO collision；真实现代数据
+  有 1 条 severe-injury-coded PUDO collision；
+- 缺少季度或月份时仍可能写出结果并显示 `[done]`，且没有新增回归测试。
+
+因此采用 semantic merge：手工吸收安全的 `N/A`/`$` 清洗、八块课程展示说明和
+协作文档；保留本分支的 stream filtering、fail-fast validation、九个真实窗口、
+六个 modern primary windows、location reconciliation 和 consequence pipeline。
+英文逐项对照见 [`UPSTREAM_42A8AB0_REVIEW.md`](UPSTREAM_42A8AB0_REVIEW.md)。

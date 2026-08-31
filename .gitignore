@@ -1,6 +1,9 @@
 # Data Files 
 data/
 
+# Local working notes
+/notes/
+
 # Python bytecode
 __pycache__/
 *.py[cod]

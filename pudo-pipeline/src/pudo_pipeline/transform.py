@@ -79,7 +79,7 @@ def _read_csv_str(
     lazy = lazy.with_columns(
         pl.all()
         .str.strip_chars()
-        .replace(["Redacted", "REDACTED", "NULL", "null", ""], None)
+        .replace(["Redacted", "REDACTED", "NULL", "null", "N/A", ""], None)
     )
     if positive_filter_columns:
         present = [c for c in positive_filter_columns if c in lazy.collect_schema()]
@@ -105,8 +105,14 @@ def _flag_to_bool(col: str) -> pl.Expr:
 
 
 def _numeric_expr(col: str, dtype: pl.DataType = pl.Float64) -> pl.Expr:
-    """Parse CPUC numbers such as ``"1,430,498.32"`` without data loss."""
-    return pl.col(col).str.replace_all(",", "").cast(dtype, strict=False).alias(col)
+    """Parse grouped/currency-like CPUC numbers without silent data loss."""
+    return (
+        pl.col(col)
+        .str.replace_all(",", "")
+        .str.replace_all(r"\$", "")
+        .cast(dtype, strict=False)
+        .alias(col)
+    )
 
 
 def _is_driverless_source(path: Path) -> bool:
@@ -443,19 +449,21 @@ def load_collision_locations(extract_dir: Path) -> pl.DataFrame:
             frames.append(frame)
     if not frames:
         raise FileNotFoundError(f"No Incidents-Location CSVs found under {extract_dir}")
-    return pl.concat(frames, how="diagonal").unique(
-        subset=[
-            "period_id",
-            "TCPID",
-            "Year",
-            "Quarter",
-            "Tract",
-            "CollisionsAll",
-            "CollisionsPUDO",
-            "PUDOTravelLane",
-        ],
-        keep="last",
+    out = pl.concat(frames, how="diagonal")
+    location_key = ["period_id", "TCPID", "Year", "Quarter", "Tract"]
+    location_values = ["CollisionsAll", "CollisionsPUDO", "PUDOTravelLane"]
+    conflicts = (
+        out.group_by(location_key)
+        .agg(pl.struct(location_values).n_unique().alias("source_versions"))
+        .filter(pl.col("source_versions") > 1)
     )
+    if conflicts.height:
+        examples = conflicts.select(location_key).head(5).to_dicts()
+        raise DataValidationError(
+            "Conflicting Incidents-Location revisions for the same tract/window: "
+            f"{examples}"
+        )
+    return out.unique(subset=location_key, keep="last")
 
 
 def load_monthly(extract_dir: Path) -> pl.DataFrame:

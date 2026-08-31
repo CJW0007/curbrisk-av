@@ -92,7 +92,8 @@ if a required rate would be null.
   folders and filters the carrier identifiers to Waymo before aggregation.
 - Legacy and modern travel-lane PUDO totals may be redacted. These remain null
   (unknown), rather than being converted to zero.
-- CPUC uses comma-formatted numeric strings. The parser removes thousands
-  separators before conversion and fails fast if critical values remain null.
+- CPUC uses comma-formatted and occasionally currency-like numeric strings.
+  The parser removes thousands separators and `$` before conversion, treats
+  `N/A` as unknown, and fails fast if critical values remain null.
 - Source page: CPUC AV Program Quarterly Reporting
   (cpuc.ca.gov → Licensing → Autonomous Vehicle Programs → Quarterly Reporting).
