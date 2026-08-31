@@ -71,6 +71,6 @@ critical numeric values are unparseable, exposure is non-positive, or a required
 risk rate is null. Run the regression tests and execute every notebook code
 cell after changes.
 
-See `docs/ANALYSIS_AND_FIXES_ZH.md` for the full analysis and
+See `docs/ANALYSIS_AND_FIXES.md` for the full analysis and
 `docs/UPSTREAM_42A8AB0_REVIEW.md` for the comparison with Jonathan's 2026-08-30
 update.

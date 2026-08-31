@@ -3,9 +3,9 @@
 Reproducible pipeline for analyzing **PUDO (pick-up/drop-off) complaint risk**
 in Waymo's CPUC AV Deployment quarterly reports, covering **2024 Q3 – 2026 Q2**.
 
-For a Chinese walkthrough of the source-data problems, fixes, statistical
+For a detailed walkthrough of the source-data problems, fixes, statistical
 choices, and consequence analysis, see
-[`docs/ANALYSIS_AND_FIXES_ZH.md`](../docs/ANALYSIS_AND_FIXES_ZH.md).
+[`docs/ANALYSIS_AND_FIXES.md`](../docs/ANALYSIS_AND_FIXES.md).
 
 Downloads the public report zips from the CPUC website, extracts the
 Incidents-Complaints, Incidents-Location, and Month-Level files; validates

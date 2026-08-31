@@ -32,17 +32,18 @@ $$
 
 Exposure-adjusted rates and statistical trend models are then used to evaluate changes across reporting periods and place PUDO hazards on a **likelihood × consequence risk matrix**.
 
-The detailed Chinese review—covering the five original bugs, source-schema
-audit, preprocessing decisions, feature/sample relationships, distribution,
-trend models, and consequence analysis—is available in
-[`docs/ANALYSIS_AND_FIXES_ZH.md`](docs/ANALYSIS_AND_FIXES_ZH.md).
+The detailed review—covering the five original bugs, source-schema audit,
+preprocessing decisions, feature/sample relationships, distributions, trend
+models, and consequence analysis—is available in
+[`docs/ANALYSIS_AND_FIXES.md`](docs/ANALYSIS_AND_FIXES.md).
 
 The class prompt describes Q3 2024–Q2 2026 as eight quarters. CPUC actually
 published nine usable windows because it issued a one-month December 2024
-transition report before switching to calendar quarters in 2025. The primary
-trend model retains all nine windows with their actual time spacing. The
-Notebook combines Sep–Nov and Dec 2024 only for the requested four-block Y1
-versus four-block Y2 classroom comparison, and labels that choice explicitly.
+transition report before switching to calendar quarters in 2025. All nine
+windows remain in the descriptive and sensitivity views, while the primary
+trend models use the six schema-consistent 2025+ windows. The Notebook combines
+Sep–Nov and Dec 2024 only for the requested four-block Y1 versus four-block Y2
+classroom comparison, and labels that choice explicitly.
 
 ## Data
 
