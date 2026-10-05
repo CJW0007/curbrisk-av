@@ -1,0 +1,119 @@
+{
+  "source_commit": "06fdb2e928ab133f799015ae01323c991669ddcd",
+  "private_raw_narratives_included": false,
+  "new_human_review_completed": false,
+  "files": {
+    ".gitattributes": {
+      "bytes": 94,
+      "sha256": "60d35208e015a6b4832e84fd00b10e3d835acd2f44dca24213ad949002ad5943"
+    },
+    ".gitignore": {
+      "bytes": 48,
+      "sha256": "5fdea94f086ece0da4280e42736b43b97aa2cb026e9749e6e441385647267f5e"
+    },
+    "README.md": {
+      "bytes": 6875,
+      "sha256": "84cee48cab62804c960454013ffc8383956326e008fe564f54187f7dd55a20d2"
+    },
+    "classroom/AV_DEM_Main_PUDO_Backup.pdf": {
+      "bytes": 266714,
+      "sha256": "9075fafcb9059dc858fbfc605c88644e3c3a745c81a4efa9228be44d465596d8"
+    },
+    "classroom/AV_DEM_Main_PUDO_Backup.pptx": {
+      "bytes": 22809,
+      "sha256": "15452206304b55b7016139bfe73fc31415deeb582af139df04807eb9df5830dc"
+    },
+    "classroom/Class_Talk_and_Methods_ZH_EN.pdf": {
+      "bytes": 337201,
+      "sha256": "47b4f5014bf8b0e7d9854f92a8dc61cbe983da36da700bc9fec5f30d49163e24"
+    },
+    "classroom/facts.json": {
+      "bytes": 5322,
+      "sha256": "8b4f98f998973c30776ab8099518e77b84343f66b8f0b13bb972626461409a36"
+    },
+    "classroom/slide-1.png": {
+      "bytes": 178991,
+      "sha256": "bd4187c48f3ae50209e4cb23e89c48c94dcd3d8fc88b66a13e84648ca9fc9fcd"
+    },
+    "classroom/slide-2.png": {
+      "bytes": 131492,
+      "sha256": "3373234d2cc0b53958080ecfe35d5af593d95eabd12dde64ff1a765d4c0c8526"
+    },
+    "requirements.txt": {
+      "bytes": 84,
+      "sha256": "27bfdfc70d3dc04f73e8b3205fe074e06f13d2ecdc7bb7217b66dbd1ebb68fd0"
+    },
+    "results/MODEL_EXPLANATION_EN_ZH.txt": {
+      "bytes": 10698,
+      "sha256": "d7262add09a5e16646c8572a2fe551f902cca3ae28f9feebb09d41c7f1ec6caa"
+    },
+    "results/duration_features.csv": {
+      "bytes": 11404,
+      "sha256": "29a964cff45913f643cdb1d3f41a96db2901c223e29ff0f134408dd3eb88e7f3"
+    },
+    "results/fold_metrics.csv": {
+      "bytes": 1676,
+      "sha256": "49cb5f4f07b29d4344ad20d3bb71769c3fb1170643f89073796261f6af5e68a9"
+    },
+    "results/model_brier.png": {
+      "bytes": 78238,
+      "sha256": "1c387c3db2e40da209be3f6c148779a0eb958b3b90e3bb47412e2f987ebd09c6"
+    },
+    "results/model_results.csv": {
+      "bytes": 728,
+      "sha256": "edff5d37e143ebff4ad683b135e9e25e10f16dee27e186c9ad109b10e479cd1f"
+    },
+    "results/model_results.json": {
+      "bytes": 16239,
+      "sha256": "56cfab8989556b4e76b8febab71de7ea6c9a9bcd03082c50ff24dcdb232356b9"
+    },
+    "results/numerical_test_results.json": {
+      "bytes": 2696,
+      "sha256": "0dd29e5f02a247172b33fd0e4271a8eccdaa195f9ced91e1483adab1f535239c"
+    },
+    "results/oof_predictions.csv": {
+      "bytes": 10051,
+      "sha256": "f9e077e6f53fb0d6aa5e11a23ee76b738283a918778d06778cbb40c5e9c83bb3"
+    },
+    "results/recent_period_metrics.csv": {
+      "bytes": 458,
+      "sha256": "1040dc8a5860299b598ce7a9ac0312a5ee00f29805729efc5447b7e3068b5c72"
+    },
+    "results/recent_period_predictions.csv": {
+      "bytes": 5419,
+      "sha256": "7c2a0d6e558e679a032025e6e157365d06c64c9cf58efa56b5f69fe3d12701a5"
+    },
+    "results/source_manifest.json": {
+      "bytes": 1962,
+      "sha256": "878dc52ee23d793e3e57ebee375a1c7bb09ccaeb1c38ff05a146a8f2d20f665c"
+    },
+    "review/review_template.csv": {
+      "bytes": 2367,
+      "sha256": "0706b2b23fdb9fdc27a310d50c321d517d77357d923fcdbefb2c7528ff70835e"
+    },
+    "scripts/duration_data.py": {
+      "bytes": 8371,
+      "sha256": "ad27b63c4c230c1426a47e054d63491f62689fc63399a276b81b6df57b77a281"
+    },
+    "scripts/duration_model.py": {
+      "bytes": 12660,
+      "sha256": "3ac41fea4880ea5bd5d92ed5824cf5d0e9fa90c0330b83ea6c92a7183b89236e"
+    },
+    "scripts/numerical_tests.py": {
+      "bytes": 11255,
+      "sha256": "ee08fde3f68d2de6f8837aa14febea57677362f4570244f36fa452c5ed80cc26"
+    },
+    "scripts/run_reproduction.py": {
+      "bytes": 1335,
+      "sha256": "8acbb2b6ece1e328d3bfd3a55d9fb5bfbf961f614c4830c6a6a2f9f1b414606c"
+    },
+    "scripts/verify_source.py": {
+      "bytes": 1113,
+      "sha256": "cf057e756c05bffa1b1d95cb69a247f10ff306b10d2a6e96b0fcacfa5fb1a969"
+    },
+    "tests/test_saved_results.py": {
+      "bytes": 3429,
+      "sha256": "ff6e5960d73c66e48ef0bad82927c2f19e7982224383575e3177229d0cd1421e"
+    }
+  }
+}

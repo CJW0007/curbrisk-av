@@ -1,0 +1,54 @@
+{
+  "source_commit": "06fdb2e928ab133f799015ae01323c991669ddcd",
+  "source_dir_at_run": "FROZEN_SOURCE_DIR (verified hashes)",
+  "source_sha256": {
+    "data/AV-Brick-Report.xlsx": "cd01c0ec475a979b03dc74078dbd4ed97fc216d3342c9621f0ddf27051b60a54",
+    "data/labels/scope_exclusions.csv": "8d0d7e97232bed52d22dc381473981b7c1b39faf401e51ba1ba21722bc610f2d",
+    "data/AV-Brick-Report-analyzed.xlsx": "e18d64c797a6548d81f1b23c6e3ec869b7e3907e358ce4fdfd22e130430edee1"
+  },
+  "primary_sheet": "DEM Incidents",
+  "raw_primary_records": 123,
+  "covered_records": 117,
+  "finite_duration_records": 117,
+  "scope_excluded_ids": [
+    "INC-016",
+    "INC-017",
+    "INC-033"
+  ],
+  "covered_months": [
+    "2025-03",
+    "2025-06",
+    "2025-07",
+    "2025-08",
+    "2025-09",
+    "2025-10"
+  ],
+  "assumed_covered_calendar_days": 184,
+  "duration_total_minutes": 6222.0,
+  "positive_records_duration_ge_60": 34,
+  "missing_av_counts": 2,
+  "missing_start_times": 0,
+  "distinct_calendar_dates": 80,
+  "area": {
+    "included": true,
+    "join": "calendar date plus uppercase, whitespace-normalized location",
+    "source_sheet": "DEM Incidents Quant",
+    "source_column": "Unnamed: 2",
+    "conflicting_matched_keys": [],
+    "invalid_matched_zone_rows": 0,
+    "primary_duplicate_keys": 0,
+    "quant_duplicate_keys": 0,
+    "interpretation": "Supplied hand-coded zone 1-10 treated as nominal, not ordered.",
+    "missing_area_records": 2,
+    "matched_area_records": 115,
+    "reason": "No conflicting matched keys or invalid area codes. Missing matches retain an explicit category."
+  },
+  "extraction_environment": {
+    "executable": "python3",
+    "python": "3.12.14",
+    "pandas": "2.2.3",
+    "numpy": "2.3.5"
+  },
+  "duration_rule": "(clear clock minute - start clock minute) modulo 1440; original workbook Duration column is not used",
+  "label_status": "An operational cutoff on logged duration. No new hazard, impact, causation or ground-truth labels."
+}

@@ -1,0 +1,76 @@
+{
+  "titles": [
+    "Public risks of AV blocking",
+    "PUDO complaints per trip"
+  ],
+  "notes": [
+    "Public risks of AV blocking. Presenters: CJ Wu and Jonathan Wilson.\n\nSource: San Francisco Department of Emergency Management incident log, compiled and cleaned by Dr Missy Cummings. Jonathan Wilson analysis pipeline, frozen commit 06fdb2e928ab133f799015ae01323c991669ddcd. The team independently reviewed calculations.\nPrimary source workbook: work/AV_Bricking/verification_20261004/source/av-blocking-analysis-06fdb2e928ab133f799015ae01323c991669ddcd/data/AV-Brick-Report.xlsx, sheet DEM Incidents. SHA256 cd01c0ec475a979b03dc74078dbd4ed97fc216d3342c9621f0ddf27051b60a54.\nIndependent frequency evidence: work/AV_Bricking/verification_20261004/frequency_current/frequency_verified.json. There are 120 full in-scope primary reports, but the frequency/recovery cohort is 117 reports in 184 covered days: March and June through October 2025. MLE rate = 117/184*30 = 19.0760869565 per 30 days, exact Poisson 95% CI [15.7764436531,22.8621895439]. Rounded slide values 19.1 and 15.8 to 22.9. This is a calendar-day report rate, without trip or mileage exposure.\nIndependent recovery evidence: work/AV_Bricking/verification_20261004/recovery_current/results.json. Median recorded duration is 24 minutes. 34/117 = 29.0598% of reports lasted at least 60 minutes. These reports account for 74.3330% of 6,222 total logged event minutes. Excluding the longest report, the share is 71.5786%. Durations are logged incident times, not actual medical delay, harm, passenger exposure, person-minutes, or total traffic delay.\nMatrix source: work/AV_Bricking/verification_20261004/source/av-blocking-analysis-06fdb2e928ab133f799015ae01323c991669ddcd/project-site/assets/tables/tbl-risk-placement.csv and src/av_blocking/risk_matrix.py. This is the pinned rubric, not a direct estimate of injury probability. Likelihood uses the 30-day chance of at least one event at the governing impact tier. Cells: H1 AV-involved collision, Likely 4 × Major 4 = Very high. H2 emergency-response obstruction, Moderate 3 × Severe 5 = Very high, based on inferred obstruction at life-threatening emergency scenes. Using only explicitly stated obstructions gives Unlikely 2 × Major 4 = Medium. H3 transit/rail, Likely 4 × Significant 3 = High. H4 pedestrian/accessibility, Moderate 3 × Significant 3 = Medium. H5 occupant-related immobilization, Moderate 3 × Significant 3 = Medium. H6 multi-AV gridlock, Likely 4 × Significant 3 = High. H7 single-AV obstruction, Almost certain 5 × Significant 3 = Very high. H7 depends on the rubric's 60-minute Significant threshold.\n",
+    "BACKUP slide. PUDO complaint rate comparison. This is a separate data source and metric from the DEM incident log.\n\nSource: instructor workbook ME 575 Class Final Data - PUDO - Waymo.xlsx, Sheet1!A7:D10, SHA256 2459c381e620234fe62ce50f0b5ffcb55fc16e0aaefd03e0352e45fe44cbf729.\nQuarter order: 2025 Q3, 2025 Q4, 2026 Q1, 2026 Q2. Complaints: 42,66,69,79. Trip exposure: 2,676,001;3,748,532;3,905,934;4,220,075. Rates = counts/trips*100,000: 1.5695061399453885, 1.760689251152184, 1.7665429062549445, 1.8720046444672191. Native editable bar chart stores rates rounded to six decimal places and displays two decimal places: 1.569506, 1.760689, 1.766543, 1.872005. Latest quarter is orange.\nPrior 3 pooled exposure = 10,330,467 trips, complaints = 177, rate = 1.713378 complaints per 100,000 trips. Latest quarter rate = 1.872005. Latest/prior 3 rate ratio = 1.0925809. Exact conditional 95% CI = [0.8272003,1.4322201], exact two-sided p = 0.5353667. Rounded slide values: RR 1.09, CI 0.83 to 1.43, p 0.535. The interval and p-value do not show clear evidence of a rate difference. Failure to find a difference does not prove equal rates. Comparison assumes complaint counts and trip denominators are comparable across quarters.\n"
+  ],
+  "facts": {
+    "cohortReports": 117,
+    "coveredDays": 184,
+    "fullInScopeReports": 120,
+    "rate": {
+      "n": 117,
+      "rate_per_30d": 19.076086956521742,
+      "ci_lo_30d": 15.77644365312712,
+      "ci_hi_30d": 22.862189543911388,
+      "post_mean_30d": 19.157608695652176,
+      "cri_lo_30d": 15.850582362186646,
+      "cri_hi_30d": 22.773299681518616,
+      "mean_days_between": 1.5726495726495726,
+      "p_any_horizon": 0.9999999803900794,
+      "band_lo": 5,
+      "band_hi": 5,
+      "band": 5
+    },
+    "medianMinutes": 24,
+    "longReports": 34,
+    "longReportShare": 0.2905982905982906,
+    "longDurationShare": 0.7433301189328191,
+    "hazardPlacements": {
+      "5,3": "H7",
+      "4,3": "H3, H6",
+      "4,4": "H1",
+      "3,3": "H4, H5",
+      "3,5": "H2*"
+    },
+    "pudo": {
+      "quarters": [
+        "2025 Q3",
+        "2025 Q4",
+        "2026 Q1",
+        "2026 Q2"
+      ],
+      "complaints": [
+        42,
+        66,
+        69,
+        79
+      ],
+      "trips": [
+        2676001,
+        3748532,
+        3905934,
+        4220075
+      ],
+      "rates": [
+        1.5695061399453885,
+        1.760689251152184,
+        1.7665429062549445,
+        1.8720046444672191
+      ],
+      "priorPooled": {
+        "complaints": 177,
+        "trips": 10330467
+      },
+      "rateRatio": 1.0925809,
+      "ci": [
+        0.8272003,
+        1.4322201
+      ],
+      "p": 0.5353667
+    }
+  }
+}

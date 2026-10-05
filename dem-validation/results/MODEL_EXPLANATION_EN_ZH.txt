@@ -1,0 +1,81 @@
+ENGLISH
+
+Question and finding
+Can AV count, event start clock time and the existing nominal area code help predict a logged event lasting at least 60 minutes? In this small exploratory comparison, these inputs did not provide convincing improvement over a training-fold prevalence baseline. Both fitted models had worse Brier scores. This negative result is useful: the available operational fields do not yet support a dependable prediction claim.
+
+The 117 covered, in-scope primary records contain 34 long logged events (29.1%). The recorded intervals total 6,222 minutes. The outcome is recorded interval length, not emergency delay, exposure, injury or public harm. No new hazard or impact labels were created.
+
+Method
+All three methods use exactly the same five GroupKFold splits. The group is calendar DATE, with 80 distinct dates. All records on one date stay together. Within each training fold, numeric missing values are filled with training medians and numeric features are standardized. Missing AV count remains a separate indicator. Start clock time becomes sine and cosine on a 24-hour cycle. The supplied hand-coded area code is one-hot encoded as a nominal category inside the training fold. Unseen categories are ignored by the encoder.
+
+Area join: calendar date plus uppercase location with normalized whitespace. No matched keys have conflicting codes or invalid codes. Of 117 records, 115 match a code and two retain an explicit missing category. Area numbers 1-10 are never treated as a severity ranking or continuous scale.
+
+Fixed models: DummyClassifier prior, L2 logistic regression with C=1, and a decision tree with maximum depth 3 and at least eight records per leaf. There was no parameter tuning or split search. The classification threshold was fixed at 0.5. These simple methods give a readable baseline, a regularized additive model and a limited interaction model without training an expensive language model.
+
+Duration, clear time, midnight-crossing flags, narrative, hazard labels, impact scores and emergency/transit impact flags are excluded from predictors. Impact already incorporates duration, so using it to predict duration would leak the answer.
+
+Predictions for held-out dates, pooled across five folds
+Method              ROC-AUC    Average precision    Brier score
+Prevalence prior    0.4607     0.2743               0.2067
+L2 logistic         0.3955     0.2945               0.2349
+Shallow tree        0.4476     0.2641               0.2545
+
+Higher ROC-AUC and average precision are better. Lower Brier is better. The baseline is constant within each test fold, but its training prevalence differs between folds. Its pooled AUC therefore need not equal 0.5. This variation does not represent learned signal from the inputs.
+
+At the fixed 0.5 cutoff, logistic regression identifies 2/34 long events (5.9% recall, 33.3% precision). The tree identifies 5/34 (14.7% recall, 19.2% precision). The prevalence baseline predicts no positives. Balanced accuracy is 0.5000, 0.5053 and 0.4470 respectively. Precision is reported as zero when a method predicts no positives.
+
+A fixed additional temporal check fits March, June and July (56 records, 15 long events), then scores August-October (61 records, 19 long events). These records had already been examined historically. This is exploratory historical evaluation, not untouched prospective validation. Brier scores are 0.2164 for the baseline, 0.2545 for logistic regression and 0.2416 for the tree. The tree's AUC is 0.5545 in this check, but its probability error is worse than the baseline. No model is selected from these results.
+
+Limits and next evidence
+Small sample size, sparse area categories, possible shared episodes across dates and reporting/clearance practices limit interpretation. Grouping by date reduces one route of leakage but does not establish independence. Fold-to-fold metrics are descriptive spread, not confidence intervals. A future prediction claim needs a fixed protocol and later records collected under comparable reporting rules. Changing models after inspecting these results would need a new validation set.
+
+Numerical verification
+Independent tests, with no upstream calculation imports, reproduce 117 records, 184 assumed covered calendar days, 6,222 minutes and 34 events at least 60 minutes. They reconstruct H2 Severe-or-worse count 3, with 30-day posterior-predictive probability 0.4105945, and strict-evidence H2 Major-or-worse count 1, probability 0.2027288. They verify the existing rule conventions rather than prove the scenario labels true.
+
+The teacher PUDO contrast is quarter four versus quarters one to three pooled: 79/4,220,075 versus 177/10,330,467 complaints per trip. Rate ratio is 1.0925809 and the two-sided exact conditional p-value is 0.5353667. PUDO trip rates and DEM calendar-day probabilities answer different questions and are not combined. Direct-workbook verification status is recorded in numerical_test_results.json.
+
+Reproduction and provenance
+Run duration_data.py in an existing environment with pandas, numpy and openpyxl, then duration_model.py in an existing environment also containing scipy and scikit-learn >=1.2. No dependencies were installed. The actual run used the bundled Python 3.12.14 for extraction and the installed Python 3.14.6 environment with scikit-learn 1.9.0 and scipy 1.18.0 for fitting/testing.
+
+Public-module default source: dem-validation/source_inputs/av-blocking-analysis-06fdb2e928ab133f799015ae01323c991669ddcd. The source stays outside this delivery package. Relocate with --source-dir rather than editing personal paths:
+  python dem-validation/scripts/run_reproduction.py --source-dir /path/to/frozen-source --pudo-workbook /path/to/teacher-workbook.xlsx --output-dir /tmp/dem-recheck
+An optional duration_model.py --source-dir override reconstructs features directly. --output-dir relocates all derived outputs. Exact source hashes, environments and split dates are preserved in source_manifest.json and model_results.json. The numerical test script deliberately asserts the pinned snapshot's expected counts.
+
+
+中文
+
+问题与发现
+AV 数量、事件开始时刻和已有的地区类别，能否帮助预测“日志记录时长至少 60 分钟”的事件？这次小样本探索性比较未显示有说服力的改善。逻辑回归和浅层决策树的 Brier 分数均差于训练折发生比例基线。这个负结果有价值：这些现有字段还不足以支持可靠的预测结论。
+
+117 条覆盖月份内、研究范围内的原始记录中，34 条达到 60 分钟，占 29.1%。记录时长合计 6,222 分钟。预测的是日志中的时间区间，不是急救延误、人员暴露、伤害或公共危害。没有新增危险类别或影响等级标签。
+
+方法
+三种方法共用五折 GroupKFold，以日历日期 DATE 为组，共 80 个日期。同一天的记录不会同时进入训练集和测试集。每折仅用训练数据拟合缺失值中位数填补、数值标准化和地区独热编码。AV 数量缺失另设一个指示变量。开始时刻转换为 24 小时周期的正弦和余弦。地区编号按名义类别处理，不按连续数值或高低等级处理。
+
+地区按日期和统一大小写、空格后的地点文本连接。匹配键没有冲突或非法编号。115 条有地区编码，两条明确保留“缺失”类别。地区编码来自现有人工编码表，没有重新进行独立裁定。
+
+模型参数提前固定：发生比例 Dummy 基线、C=1 的 L2 逻辑回归、最大深度 3 且每个叶节点至少八条记录的决策树。没有调参或反复挑选划分。分类阈值固定为 0.5。三个方法分别提供简单基线、受约束的加性模型和受限制的交互模型。
+
+输入排除了时长、结束时刻、跨午夜标记、叙述文本、危险类别、影响等级，以及急救/公交影响标记。影响等级本身已包含时长，使用它预测时长会泄露答案。
+
+对未参与训练日期的预测结果，五折合并
+方法              ROC-AUC    平均精确率 AP    Brier 分数
+发生比例基线      0.4607     0.2743           0.2067
+L2 逻辑回归       0.3955     0.2945           0.2349
+浅层决策树        0.4476     0.2641           0.2545
+
+ROC-AUC 和 AP 越高越好，Brier 越低越好。基线在每个测试折内给出相同概率，但各训练折的发生比例不同，因此合并 AUC 不一定等于 0.5。这不代表基线从输入中学到了预测信号。
+
+在固定 0.5 阈值下，逻辑回归识别出 2/34 条长事件，召回率 5.9%、精确率 33.3%；树识别出 5/34 条，召回率 14.7%、精确率 19.2%。发生比例基线不预测任何阳性。三者平衡准确率依次为 0.5000、0.5053、0.4470。没有预测阳性时，精确率按零报告。
+
+另一个固定的时间段检查：用 3、6、7 月的 56 条记录训练，其中 15 条长事件；在 8-10 月的 61 条记录上检查，其中 19 条长事件。这些后期记录以前已被查看，属于探索性历史检查，不是未触碰的前瞻验证。基线、逻辑回归和树的 Brier 分数分别为 0.2164、0.2545、0.2416。树的 AUC 为 0.5545，但概率误差仍差于基线。没有根据这些结果选择或推广某个模型。
+
+解释限制
+样本小、地区类别稀疏、不同日期可能属于同一事件，以及报告和清场习惯，都会影响解释。按日期分组只能减少一种信息泄漏，不能证明各组独立。折间差异仅描述划分变化，不是置信区间。要提出未来预测能力的结论，需要固定协议和后续、报告方式相近的新记录。
+
+数值检查独立重算了 117 条记录、184 个假定覆盖日、6,222 分钟和 34 条长事件。H2 Severe-or-worse 的次数为 3，30 天后验预测概率为 0.4105945；严格证据下 H2 Major-or-worse 的次数为 1，概率为 0.2027288。检查验证现有规则如何计算，不证明情境分级就是真实后果。
+
+教师 PUDO 比较是第四季度与前三季度合并：79/4,220,075 对 177/10,330,467。投诉率比为 1.0925809，双侧精确条件检验 p=0.5353667。PUDO 的行程分母和 DEM 的日历日分母回答不同问题，不能合并。工作簿是否直接核验见 numerical_test_results.json。
+
+可复现性
+源文件固定在 06fdb2e928ab133f799015ae01323c991669ddcd，并保持只读。提取使用已有的捆绑 Python，拟合和检验使用已有的统计环境，没有安装新依赖。脚本支持 --source-dir 指定其他位置，不依赖个人绝对路径。源文件哈希、环境版本、全部测试日期和逐记录预测均保留在输出文件中。复现命令见英文段落。

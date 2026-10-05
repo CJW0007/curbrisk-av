@@ -1,0 +1,74 @@
+{
+  "status": "PASS",
+  "source_commit": "06fdb2e928ab133f799015ae01323c991669ddcd",
+  "source_sha256": {
+    "data/AV-Brick-Report.xlsx": "cd01c0ec475a979b03dc74078dbd4ed97fc216d3342c9621f0ddf27051b60a54",
+    "data/labels/scope_exclusions.csv": "8d0d7e97232bed52d22dc381473981b7c1b39faf401e51ba1ba21722bc610f2d",
+    "data/labels/evidence_flags.csv": "16276ee94b84589436bbbf6e29aa04ddd3ceb0cacef77372dbcd3e73915f255e"
+  },
+  "independence": "No upstream calculation imports. Raw spreadsheet clocks, source scope exclusions, frozen H1/H2 regex conventions and evidence overrides are re-expressed directly. This verifies conventions, not the clinical or scene truth of a label.",
+  "dem": {
+    "covered_records": 117,
+    "assumed_calendar_days": 184,
+    "logged_minutes": 6222.0,
+    "long_logged_events_ge_60": 34,
+    "h2_major_or_worse_count": 6,
+    "h2_severe_count": 3,
+    "h2_severe_ids": [
+      "INC-064",
+      "INC-089",
+      "INC-102"
+    ],
+    "h2_severe_predictive_p_30d": 0.41059451399633684,
+    "strict_h2_major_count": 1,
+    "strict_h2_major_ids": [
+      "INC-079"
+    ],
+    "strict_h2_major_predictive_p_30d": 0.2027288032542605
+  },
+  "pudo": {
+    "source_status": "Teacher workbook cells directly verified.",
+    "complaints": [
+      42,
+      66,
+      69,
+      79
+    ],
+    "trips": [
+      2676001,
+      3748532,
+      3905934,
+      4220075
+    ],
+    "source_path_at_run": "ME 575 Class Final Data - PUDO - Waymo.xlsx",
+    "sha256": "2459c381e620234fe62ce50f0b5ffcb55fc16e0aaefd03e0352e45fe44cbf729",
+    "sheet": "Sheet1",
+    "range": "A7:D10",
+    "complaint_column": "D: PUDO complaints v22 (agrees with C: v1 in selected four quarters)",
+    "trip_column": "B: Trips",
+    "period_labels": [
+      "Q3 '25",
+      "Q4 '25",
+      "Q1 '26",
+      "Q2 '26"
+    ],
+    "contrast": "fourth quarter versus first three quarters pooled",
+    "earlier_complaints": 177,
+    "earlier_trips": 10330467,
+    "recent_complaints": 79,
+    "recent_trips": 4220075,
+    "earlier_complaints_per_million_trips": 17.133784948928255,
+    "recent_complaints_per_million_trips": 18.720046444672192,
+    "recent_over_earlier_rate_ratio": 1.092580915452844,
+    "two_sided_exact_conditional_p": 0.5353666932462805,
+    "test_null": "Equal complaint rates per trip. Conditional on 256 total complaints, recent count is Binomial(256, recent exposure share).",
+    "limitations": "Complaint sourcing and trip denominator eligibility must match. This is complaint frequency per trip, not injury risk or a causal AV comparison."
+  },
+  "environment": {
+    "executable": "python",
+    "python": "3.14.6",
+    "pandas": "3.0.3",
+    "numpy": "2.4.6",
+    "scipy": "1.18.0"
+  }
+}
